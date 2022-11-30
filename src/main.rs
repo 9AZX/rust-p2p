@@ -1,21 +1,23 @@
-// main.rs
+use std::io;
 
-mod network;
+pub mod network;
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<(), io::Error> {
     // launch network controller
     let mut net = network::controller::NetworkController::new(
-        peers_file,
-        listen_port,
-        target_outgoing_connections,
-        max_incoming_connections,
-        max_simultaneous_outgoing_connection_attempts,
-        max_simultaneous_incoming_connection_attempts,
-        max_idle_peers,
-        max_banned_peers,
-        peer_file_dump_interval_seconds,
+        // peers_file,
+        // listen_port,
+        // target_outgoing_connections,
+        // max_incoming_connections,
+        // max_simultaneous_outgoing_connection_attempts,
+        // max_simultaneous_incoming_connection_attempts,
+        // max_idle_peers,
+        // max_banned_peers,
+        // peer_file_dump_interval_seconds,
     )
     .await?;
+
     /*
         NetworkController internally maintains a list of known peers and connections with them.
             It does not read/write on sockets, but only listens/connects
