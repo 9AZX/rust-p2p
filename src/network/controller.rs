@@ -5,7 +5,17 @@ use std::net::{IpAddr, TcpStream};
 pub struct NetworkController;
 
 impl NetworkController {
-    pub async fn new() -> Result<Self, io::Error> {
+    pub async fn new(
+        peers_file: &str,
+        listen_port: u16,
+        // target_outgoing_connections: TODO,
+        max_incoming_connections: usize,
+        max_simultaneous_outgoing_connection_attempts: usize,
+        max_simultaneous_incoming_connection_attempts: usize,
+        max_idle_peers: usize,
+        max_banned_peers: usize,
+        peer_file_dump_interval_seconds: usize,
+    ) -> Result<Self, io::Error> {
         Ok(Self)
     }
 
@@ -15,5 +25,9 @@ impl NetworkController {
 }
 
 pub enum NetworkControllerEvent {
-    CandidateConnection { ip: IpAddr, socket: TcpStream, is_outgoing: bool }
+    CandidateConnection {
+        ip: IpAddr,
+        socket: TcpStream,
+        is_outgoing: bool,
+    },
 }

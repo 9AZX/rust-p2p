@@ -4,17 +4,26 @@ pub mod network;
 
 #[tokio::main]
 async fn main() -> Result<(), io::Error> {
+    let peers_file = "peers.json";
+    let listen_port = 8080;
+    let max_incoming_connections = 16;
+    let max_simultaneous_outgoing_connection_attempts = 16;
+    let max_simultaneous_incoming_connection_attempts = 16;
+    let max_idle_peers = 16;
+    let max_banned_peers = 16;
+    let peer_file_dump_interval_seconds = 60;
+
     // launch network controller
     let mut net = network::controller::NetworkController::new(
-        // peers_file,
-        // listen_port,
+        peers_file,
+        listen_port,
         // target_outgoing_connections,
-        // max_incoming_connections,
-        // max_simultaneous_outgoing_connection_attempts,
-        // max_simultaneous_incoming_connection_attempts,
-        // max_idle_peers,
-        // max_banned_peers,
-        // peer_file_dump_interval_seconds,
+        max_incoming_connections,
+        max_simultaneous_outgoing_connection_attempts,
+        max_simultaneous_incoming_connection_attempts,
+        max_idle_peers,
+        max_banned_peers,
+        peer_file_dump_interval_seconds,
     )
     .await?;
 
