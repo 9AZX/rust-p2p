@@ -1,4 +1,5 @@
 use std::io;
+use crate::network::peer::Peer;
 
 pub mod network;
 
@@ -6,7 +7,7 @@ pub mod network;
 async fn main() -> Result<(), io::Error> {
     let peers_file = "peers.json";
     let listen_port = 8080;
-    let target_outgoing_connections = Vec::new();
+    let mut target_outgoing_connections: Vec<Peer> = Vec::new();
     let max_incoming_connections = 16;
     let max_simultaneous_outgoing_connection_attempts = 16;
     let max_simultaneous_incoming_connection_attempts = 16;
@@ -18,7 +19,7 @@ async fn main() -> Result<(), io::Error> {
     let mut net = network::controller::NetworkController::new(
         peers_file,
         listen_port,
-        target_outgoing_connections,
+        &mut target_outgoing_connections,
         max_incoming_connections,
         max_simultaneous_outgoing_connection_attempts,
         max_simultaneous_incoming_connection_attempts,
