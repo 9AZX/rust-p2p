@@ -1,4 +1,6 @@
 use std::{fs, io};
+use std::time::Duration;
+use tokio::time::sleep;
 use crate::network::peer::{Peer};
 
 pub struct PeersFileController {
@@ -8,6 +10,13 @@ pub struct PeersFileController {
 impl PeersFileController {
     pub fn new(file: &str) -> PeersFileController {
         PeersFileController { file_path: file.to_string() }
+    }
+
+    pub async fn peer_file_worker(&self, peers_list: &Vec<Peer>, dump_interval: u64) {
+        loop {
+            sleep(Duration::from_secs(dump_interval)).await;
+            self.write_file(peers_list);
+        }
     }
 
     pub fn read_file(&self) -> Vec<Peer> {
