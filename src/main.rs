@@ -3,7 +3,9 @@ use std::io;
 use std::net::IpAddr;
 use crate::network::peer::Peer;
 
+
 pub mod network;
+pub mod error_logger;
 
 #[tokio::main]
 async fn main() -> Result<(), io::Error> {
