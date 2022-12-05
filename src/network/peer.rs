@@ -1,7 +1,6 @@
 use std::net::IpAddr;
 use chrono::{DateTime, Utc};
 use tokio::net::TcpStream;
-use serde::{Deserialize, Serialize};
 
 pub struct Peer {
     ip: IpAddr,
@@ -20,6 +19,10 @@ impl Peer {
             last_alive: None,
             last_failure: None
         }
+    }
+
+    pub fn ip(&self) -> &IpAddr {
+        &self.ip
     }
 }
 

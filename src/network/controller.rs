@@ -4,8 +4,9 @@ use tokio::net::TcpStream;
 use crate::network::file::PeersFileController;
 use crate::network::peer::Peer;
 
-#[derive(Default, Clone, Copy, Debug)]
-pub struct NetworkController;
+pub struct NetworkController {
+    pub file_controller: PeersFileController
+}
 
 impl NetworkController {
     pub async fn new(
@@ -19,8 +20,13 @@ impl NetworkController {
         max_banned_peers: usize,
         peer_file_dump_interval_seconds: usize,
     ) -> Result<Self, io::Error> {
-        target_outgoing_connections.append(&mut PeersFileController::read(peers_file));
-        Ok(Self)
+        let mut network_controller = NetworkController { file_controller: PeersFileController::new(peers_file) };
+
+        target_outgoing_connections.append(&mut network_controller.file_controller.read_file());
+
+        network_controller.file_controller.write_file(target_outgoing_connections);
+
+        Ok(network_controller)
     }
 
     pub async fn wait_event(&self) -> Result<NetworkControllerEvent, io::Error> {
