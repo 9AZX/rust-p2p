@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io;
 use std::net::IpAddr;
@@ -10,6 +9,7 @@ use displaydoc::Display;
 
 use crate::network::file::{PeersFileController, PeersFileControllerError};
 use crate::network::peer::Peer;
+use crate::error_logger::InspectErr;
 
 #[derive(Display, Error, Debug)]
 pub enum NetworkControllerError {

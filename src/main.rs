@@ -3,7 +3,6 @@ use std::io;
 use std::net::IpAddr;
 use crate::network::peer::Peer;
 
-
 pub mod network;
 pub mod error_logger;
 
@@ -20,7 +19,7 @@ async fn main() -> Result<(), io::Error> {
     let peer_file_dump_interval_seconds = 60;
 
     // launch network controller
-    let mut net = network::controller::NetworkController::new(
+    let mut net = NetworkController::new(
         peers_file,
         listen_port,
         target_outgoing_connections,

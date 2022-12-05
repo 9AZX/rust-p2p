@@ -10,8 +10,6 @@ use displaydoc::Display;
 use log::{error};
 use crate::error_logger::InspectErr;
 
-struct FileWorker;
-
 #[derive(Display, Error, Debug)]
 pub enum PeersFileControllerError {
     /// Unable to read peers json file
@@ -30,7 +28,7 @@ pub struct PeersFileController {
 
 impl PeersFileController {
     pub fn new(file: &str) -> PeersFileController {
-        PeersFileController { file_path: file.to_string(), is_changed: false }
+        PeersFileController { file_path: file.to_string(), is_changed: AtomicBool::new(false) }
     }
 
     fn parse_peer(data: String) -> Result<HashMap<IpAddr, Peer>, PeersFileControllerError> {
@@ -53,8 +51,11 @@ impl PeersFileController {
 
         let json = serde_json::to_string(&ips)?;
 
-        fs::write(&self.file_path, &json)
+        fs::write(&self.file_path, &json)?;
+        self.is_changed.store(false, Ordering::SeqCst);
 
+        trace!("Json peers list dumped");
+        Ok(())
     }
 }
 
