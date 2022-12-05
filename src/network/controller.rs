@@ -1,11 +1,14 @@
 use std::collections::HashMap;
 use std::io;
 use std::net::IpAddr;
+use std::sync::Arc;
+use std::time::Duration;
 
 use tokio::net::TcpStream;
 use tokio::time::{sleep};
 use thiserror::Error;
 use displaydoc::Display;
+use log::{error, info};
 
 use crate::network::file::{PeersFileController, PeersFileControllerError};
 use crate::network::peer::Peer;
@@ -15,11 +18,20 @@ use crate::error_logger::InspectErr;
 pub enum NetworkControllerError {
     /// Error with the file controller: {0}
     FileController(#[from] PeersFileControllerError),
+    /// Io error: {0}
+    Io(#[from] io::Error),
+}
+
+impl From<NetworkControllerError> for io::Error {
+    fn from(err: NetworkControllerError) -> io::Error {
+        io::Error::new(io::ErrorKind::Other, err)
+    }
 }
 
 pub struct NetworkController {
-    file_controller: PeersFileController,
-    peers: HashMap<IpAddr, Peer>
+    file_controller: Arc<PeersFileController>,
+    peers: Arc<HashMap<IpAddr, Peer>>,
+    target_outgoing_connections: HashMap<IpAddr, Peer>,
 }
 
 impl NetworkController {
@@ -33,15 +45,24 @@ impl NetworkController {
         max_idle_peers: usize,
         max_banned_peers: usize,
         peer_file_dump_interval_seconds: u64,
-    ) -> Result<Self, io::Error> {
-        let mut network_controller = Self { file_controller: PeersFileController::new(peers_file), peers: target_outgoing_connections};
-
+    ) -> Result<Self, NetworkControllerError> {
+        let file_controller = Arc::new(PeersFileController::new(peers_file));
         // Read json and create peers
-      //  network_controller.peers.insert(&mut network_controller.file_controller.read_file());
+        let peer_list = file_controller.read_file()?;
+        let peers: Arc<HashMap<IpAddr, Peer>> = Default::default();
 
         // Create the file dumper worker
-
-        Ok(network_controller)
+        let peers_clone = peers.clone();
+        let file_controller_clone = file_controller.clone();
+        tokio::spawn(async move {
+            info!("Starting file worker");
+            let mut interval = tokio::time::interval(Duration::from_secs(peer_file_dump_interval_seconds));
+            loop {
+                interval.tick().await;
+                let _ = file_controller_clone.write_file(peers_clone.as_ref()).inspect_error(|err| error!("Error while writting file: {err}"));
+            }
+        });
+        Ok(Self { file_controller, peers: Default::default(), target_outgoing_connections: peer_list })
     }
 
     pub async fn add_peer(&self) {}
@@ -52,10 +73,7 @@ impl NetworkController {
         todo!()
     }
 
-    async fn connect_to_peers(&mut self) {
-        for peer in &mut self.peers {
-        }
-    }
+    async fn connect_to_peers(&mut self) {}
 }
 
 pub enum NetworkControllerEvent {

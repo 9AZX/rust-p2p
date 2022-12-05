@@ -2,12 +2,11 @@ use std::{fs, io};
 use std::collections::HashMap;
 use std::net::{AddrParseError, IpAddr};
 use std::str::FromStr;
-use std::time::Duration;
-use tokio::time::sleep;
+use std::sync::atomic::{AtomicBool, Ordering};
 use crate::network::peer::{Peer};
 use thiserror::Error;
 use displaydoc::Display;
-use log::{error};
+use log::{info, trace, warn};
 use crate::error_logger::InspectErr;
 
 #[derive(Display, Error, Debug)]
@@ -23,7 +22,7 @@ pub enum PeersFileControllerError {
 #[derive(Default)]
 pub struct PeersFileController {
     file_path: String,
-    is_changed: bool
+    is_changed: AtomicBool
 }
 
 impl PeersFileController {
@@ -36,7 +35,7 @@ impl PeersFileController {
 
 
         Ok(data.iter().map(|ip| -> Result<(IpAddr, Peer), PeersFileControllerError> {
-            Ok((IpAddr::from_str(ip).inspect_error(|err| error!("Can't parse ip {}", err))?, Peer::new(ip)))
+            Ok((IpAddr::from_str(ip).inspect_error(|err| warn!("Can't parse ip {}", err))?, Peer::new(ip)))
         }).flatten().collect())
     }
 
@@ -46,8 +45,10 @@ impl PeersFileController {
         Self::parse_peer(json)
     }
 
-    pub fn write_file(&self, peers: &Vec<Peer>) -> Result<(), io::Error> {
-        let ips: Vec<String> = peers.iter().map(|peer| peer.ip().to_string()).collect();
+    pub fn write_file(&self, peers: &HashMap<IpAddr, Peer>) -> Result<(), PeersFileControllerError> {
+        if !self.is_changed.load(Ordering::Relaxed) { return Ok(()) };
+
+        let ips: Vec<String> = peers.iter().map(|peer| peer.0.to_string()).collect();
 
         let json = serde_json::to_string(&ips)?;
 

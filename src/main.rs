@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::io;
 use std::net::IpAddr;
+use log::{info, trace};
+use crate::network::controller::{NetworkController, NetworkControllerError};
 use crate::network::peer::Peer;
 
 pub mod network;
@@ -16,7 +18,7 @@ async fn main() -> Result<(), io::Error> {
     let max_simultaneous_incoming_connection_attempts = 16;
     let max_idle_peers = 16;
     let max_banned_peers = 16;
-    let peer_file_dump_interval_seconds = 60;
+    let peer_file_dump_interval_seconds = 2;
 
     // launch network controller
     let mut net = NetworkController::new(
@@ -31,6 +33,42 @@ async fn main() -> Result<(), io::Error> {
         peer_file_dump_interval_seconds,
     )
     .await?;
+
+    trace!("Starting event loop");
+    // loop over messages coming from the network controller
+    loop {
+        tokio::select! {
+            msg = net.wait_event() =>
+                 match msg? {
+                    network::controller::NetworkControllerEvent::CandidateConnection {ip, socket, is_outgoing} => {
+                    info!("New candidate connection: {ip}");
+                        // ip is the peer ip, and socket is a tokio TCPStream
+                        // triggered when a new TCP connection with a peer is established
+                        // is_outgoing is true if our node has connected to the peer node
+                        // is_outgoing is false if the peer node has connected to our node
+
+                        // here, a handshake must be performed by reading/writing data to socket
+                        //  if the handshake succesds, call net.feedback_peer_alive(ip).await; to signal NetworkController to set the peer in InAlive or OutAlive state (this should update last_alive)
+                        //  if handshake fails or the connection closes unexpectedly at any time, call net.feedback_peer_failed(ip).await; to signal NetworkController to set the peer status to Idle  (this should update last_failure)
+
+                        // once the handshake is done, we can use this peer socket in main.rs
+                    }
+            }
+        }
+    }
+
+    /*
+        call net.feedback_peer_alive(ip).await whenever the peer gives a sign of life (this should update last_alive)
+
+        if the peer misbehaves at any time, call net.feedback_peer_banned(ip).await; to signal NetworkController to set the peer status to Banned (this should update last_failure)
+
+        if we have closed the peer connection cleanly, call net.feedback_peer_closed(ip).await; to signal NetworkController to set the peer status to Idle
+
+        after handshake, and then again periodically, main.rs should ask alive peers for the list of peer IPs they know about, and feed them to the network controller: net.feedback_peer_list(list_of_ips).await;
+            net.feedback_peer_list should merge the new peers to the existing peer list in a smart way
+        similarly, peers can ask us for the list of peer IPs we know about, and we can retrieve it with net.get_good_peer_ips()
+            Note that net.get_good_peer_ips() excludes banned peers and sorts the peers from "best" to "worst"
+    */
 
     /*
         NetworkController internally maintains a list of known peers and connections with them.
@@ -66,41 +104,5 @@ async fn main() -> Result<(), io::Error> {
             - no more than max_banned_peers can have Banned status. If necessary, some smartly chosen Banned peers may be dropped to respect this condition.
             - no more than max_idle_peers can have Idle status. If necessary, some smartly chosen Idle peers may be dropped to respect this condition.
             - only up to a single TCP connection per peer is allowed (whatever the direction)
-    */
-
-    // loop over messages coming from the network controller
-    loop {
-        tokio::select! {
-            evt = net.wait_event() => match evt {
-                Ok(msg) => match msg {
-                    network::controller::NetworkControllerEvent::CandidateConnection {ip, socket, is_outgoing} => {
-                        // ip is the peer ip, and socket is a tokio TCPStream
-                        // triggered when a new TCP connection with a peer is established
-                        // is_outgoing is true if our node has connected to the peer node
-                        // is_outgoing is false if the peer node has connected to our node
-
-                        // here, a handshake must be performed by reading/writing data to socket
-                        //  if the handshake succesds, call net.feedback_peer_alive(ip).await; to signal NetworkController to set the peer in InAlive or OutAlive state (this should update last_alive)
-                        //  if handshake fails or the connection closes unexpectedly at any time, call net.feedback_peer_failed(ip).await; to signal NetworkController to set the peer status to Idle  (this should update last_failure)
-
-                        // once the handshake is done, we can use this peer socket in main.rs
-                    }
-                },
-                Err(e) => return Err(e)
-            }
-        }
-    }
-
-    /*
-        call net.feedback_peer_alive(ip).await whenever the peer gives a sign of life (this should update last_alive)
-
-        if the peer misbehaves at any time, call net.feedback_peer_banned(ip).await; to signal NetworkController to set the peer status to Banned (this should update last_failure)
-
-        if we have closed the peer connection cleanly, call net.feedback_peer_closed(ip).await; to signal NetworkController to set the peer status to Idle
-
-        after handshake, and then again periodically, main.rs should ask alive peers for the list of peer IPs they know about, and feed them to the network controller: net.feedback_peer_list(list_of_ips).await;
-            net.feedback_peer_list should merge the new peers to the existing peer list in a smart way
-        similarly, peers can ask us for the list of peer IPs we know about, and we can retrieve it with net.get_good_peer_ips()
-            Note that net.get_good_peer_ips() excludes banned peers and sorts the peers from "best" to "worst"
     */
 }
