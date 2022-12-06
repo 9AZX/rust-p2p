@@ -1,3 +1,3 @@
 pub mod controller;
-pub mod peer;
 mod file;
+pub mod peer;

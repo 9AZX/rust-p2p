@@ -1,12 +1,12 @@
+use crate::network::controller::{NetworkController, NetworkControllerError};
+use crate::network::peer::Peer;
+use log::{info, trace};
 use std::collections::HashMap;
 use std::io;
 use std::net::IpAddr;
-use log::{info, trace};
-use crate::network::controller::{NetworkController, NetworkControllerError};
-use crate::network::peer::Peer;
 
-pub mod network;
 pub mod error_logger;
+pub mod network;
 
 #[tokio::main]
 async fn main() -> Result<(), io::Error> {

@@ -1,14 +1,14 @@
-use std::{fs, io};
+use crate::error_logger::InspectErr;
+use crate::network::peer::Peer;
+use displaydoc::Display;
+use log::{error, info, trace, warn};
 use std::collections::HashMap;
 use std::net::{AddrParseError, IpAddr};
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{PoisonError, RwLock};
-use crate::network::peer::{Peer};
+use std::sync::RwLock;
+use std::{fs, io};
 use thiserror::Error;
-use displaydoc::Display;
-use log::{error, info, trace, warn};
-use crate::error_logger::InspectErr;
 
 #[derive(Display, Error, Debug)]
 pub enum PeersFileControllerError {
@@ -30,7 +30,10 @@ pub struct PeersFileController {
 
 impl PeersFileController {
     pub fn new(file: &str) -> PeersFileController {
-        PeersFileController { file_path: file.to_string(), is_changed: AtomicBool::new(false) }
+        PeersFileController {
+            file_path: file.to_string(),
+            is_changed: AtomicBool::new(false),
+        }
     }
 
     pub fn changed(&self) {
@@ -40,9 +43,16 @@ impl PeersFileController {
     fn parse_peer(data: String) -> Result<HashMap<IpAddr, Peer>, PeersFileControllerError> {
         let data: Vec<String> = serde_json::from_str(&data)?;
 
-        Ok(data.iter().map(|ip| -> Result<(IpAddr, Peer), PeersFileControllerError> {
-            Ok((IpAddr::from_str(ip).inspect_error(|err| warn!("Can't parse ip {}", err))?, Peer::new(ip)))
-        }).flatten().collect())
+        Ok(data
+            .iter()
+            .map(|ip| -> Result<(IpAddr, Peer), PeersFileControllerError> {
+                Ok((
+                    IpAddr::from_str(ip).inspect_error(|err| warn!("Can't parse ip {}", err))?,
+                    Peer::new(ip),
+                ))
+            })
+            .flatten()
+            .collect())
     }
 
     pub fn read_file(&self) -> Result<HashMap<IpAddr, Peer>, PeersFileControllerError> {
@@ -51,10 +61,20 @@ impl PeersFileController {
         Self::parse_peer(json)
     }
 
-    pub fn write_file(&self, peers: &RwLock<HashMap<IpAddr, Peer>>) -> Result<(), PeersFileControllerError> {
-        if !self.is_changed.load(Ordering::Relaxed) { return Ok(()); };
+    pub fn write_file(
+        &self,
+        peers: &RwLock<HashMap<IpAddr, Peer>>,
+    ) -> Result<(), PeersFileControllerError> {
+        if !self.is_changed.load(Ordering::Relaxed) {
+            return Ok(());
+        };
 
-        let ips: Vec<String> = peers.read().map_err(|_| PeersFileControllerError::RwLockPoisoned)?.iter().map(|peer| peer.0.to_string()).collect();
+        let ips: Vec<String> = peers
+            .read()
+            .map_err(|_| PeersFileControllerError::RwLockPoisoned)?
+            .iter()
+            .map(|peer| peer.0.to_string())
+            .collect();
         let json = serde_json::to_string(&ips)?;
 
         fs::write(&self.file_path, &json)?;
@@ -74,7 +94,11 @@ mod tests {
     fn test_read_file() {
         let input = "[\"192.168.1.1\", \"192.168.2.1\", \"192.168.3.1\"]".to_string();
 
-        let peers: Vec<String> = PeersFileController::parse_peer(input).expect("A list of peers").keys().map(IpAddr::to_string).collect();
+        let peers: Vec<String> = PeersFileController::parse_peer(input)
+            .expect("A list of peers")
+            .keys()
+            .map(IpAddr::to_string)
+            .collect();
 
         assert_eq!(3, peers.len());
         assert!(peers.contains(&String::from("192.168.1.1")));

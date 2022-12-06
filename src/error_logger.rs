@@ -13,8 +13,8 @@ impl<T, Error> InspectErr<Error> for Result<T, Error> {
 
 #[cfg(test)]
 mod test {
-    use log::{error, log, warn};
     use crate::error_logger::InspectErr;
+    use log::{error, log, warn};
 
     #[test]
     fn log_err() {

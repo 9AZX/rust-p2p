@@ -1,5 +1,5 @@
-use std::net::IpAddr;
 use chrono::{DateTime, Utc};
+use std::net::IpAddr;
 use tokio::net::TcpStream;
 
 pub struct Peer {
@@ -7,7 +7,7 @@ pub struct Peer {
     status: PeerStatus,
     pub socket: Option<TcpStream>,
     last_alive: Option<DateTime<Utc>>,
-    last_failure: Option<DateTime<Utc>>
+    last_failure: Option<DateTime<Utc>>,
 }
 
 impl Peer {
@@ -17,7 +17,7 @@ impl Peer {
             status: PeerStatus::Idle,
             socket: None,
             last_alive: None,
-            last_failure: None
+            last_failure: None,
         }
     }
 

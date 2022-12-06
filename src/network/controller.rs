@@ -1,19 +1,19 @@
 use std::borrow::{Borrow, BorrowMut};
 use std::collections::HashMap;
 use std::io;
-use std::net::{IpAddr};
+use std::net::IpAddr;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
-use tokio::net::TcpStream;
-use tokio::time::{sleep};
-use thiserror::Error;
 use displaydoc::Display;
 use log::{error, info};
+use thiserror::Error;
+use tokio::net::TcpStream;
+use tokio::time::sleep;
 
+use crate::error_logger::InspectErr;
 use crate::network::file::{PeersFileController, PeersFileControllerError};
 use crate::network::peer::Peer;
-use crate::error_logger::InspectErr;
 
 #[derive(Display, Error, Debug)]
 pub enum NetworkControllerError {
@@ -58,14 +58,21 @@ impl NetworkController {
         let file_controller_clone = file_controller.clone();
         tokio::spawn(async move {
             info!("Starting file worker");
-            let mut interval = tokio::time::interval(Duration::from_secs(peer_file_dump_interval_seconds));
+            let mut interval =
+                tokio::time::interval(Duration::from_secs(peer_file_dump_interval_seconds));
             loop {
                 interval.tick().await;
-                let _ = file_controller_clone.write_file(peers_clone.as_ref()).inspect_error(|err| error!("Error while writting file: {err}"));
+                let _ = file_controller_clone
+                    .write_file(peers_clone.as_ref())
+                    .inspect_error(|err| error!("Error while writting file: {err}"));
             }
         });
 
-        Ok(Self { file_controller, peers, target_outgoing_connections })
+        Ok(Self {
+            file_controller,
+            peers,
+            target_outgoing_connections,
+        })
     }
 
     pub fn add_peer(&mut self, peer: Peer) {
