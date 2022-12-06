@@ -1,7 +1,8 @@
+use std::borrow::{Borrow, BorrowMut};
 use std::collections::HashMap;
 use std::io;
-use std::net::IpAddr;
-use std::sync::Arc;
+use std::net::{IpAddr};
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
 use tokio::net::TcpStream;
@@ -30,7 +31,7 @@ impl From<NetworkControllerError> for io::Error {
 
 pub struct NetworkController {
     file_controller: Arc<PeersFileController>,
-    peers: Arc<HashMap<IpAddr, Peer>>,
+    peers: Arc<RwLock<HashMap<IpAddr, Peer>>>,
     target_outgoing_connections: HashMap<IpAddr, Peer>,
 }
 
@@ -47,9 +48,10 @@ impl NetworkController {
         peer_file_dump_interval_seconds: u64,
     ) -> Result<Self, NetworkControllerError> {
         let file_controller = Arc::new(PeersFileController::new(peers_file));
+
         // Read json and create peers
         let peer_list = file_controller.read_file()?;
-        let peers: Arc<HashMap<IpAddr, Peer>> = Default::default();
+        let peers: Arc<RwLock<HashMap<IpAddr, Peer>>> = Arc::new(RwLock::new(peer_list));
 
         // Create the file dumper worker
         let peers_clone = peers.clone();
@@ -62,10 +64,18 @@ impl NetworkController {
                 let _ = file_controller_clone.write_file(peers_clone.as_ref()).inspect_error(|err| error!("Error while writting file: {err}"));
             }
         });
-        Ok(Self { file_controller, peers: Default::default(), target_outgoing_connections: peer_list })
+
+        Ok(Self { file_controller, peers, target_outgoing_connections })
     }
 
-    pub async fn add_peer(&self) {}
+    pub fn add_peer(&mut self, peer: Peer) {
+        if let Ok(mut peers) = self.peers.write() {
+            peers.insert(*peer.ip(), peer);
+            self.file_controller.changed();
+        } else {
+            error!("Peer list is poisoned and won't get refresh");
+        }
+    }
 
     pub async fn remove_peer(&self) {}
 
@@ -73,12 +83,16 @@ impl NetworkController {
         todo!()
     }
 
-    async fn connect_to_peers(&mut self) {}
+    async fn connect_to_peers(&mut self) {
+        for peer in self.peers.write().unwrap().iter_mut() {
+            peer.1.socket = TcpStream::connect(peer.0.to_string()).await.ok();
+        }
+    }
 }
 
 pub enum NetworkControllerEvent {
     CandidateConnection {
-        ip: IpAddr,
+        ip: String,
         socket: TcpStream,
         is_outgoing: bool,
     },

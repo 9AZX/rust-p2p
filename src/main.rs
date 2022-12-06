@@ -42,6 +42,7 @@ async fn main() -> Result<(), io::Error> {
                  match msg? {
                     network::controller::NetworkControllerEvent::CandidateConnection {ip, socket, is_outgoing} => {
                     info!("New candidate connection: {ip}");
+                        net.add_peer(Peer::new(&ip));
                         // ip is the peer ip, and socket is a tokio TCPStream
                         // triggered when a new TCP connection with a peer is established
                         // is_outgoing is true if our node has connected to the peer node

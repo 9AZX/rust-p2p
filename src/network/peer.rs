@@ -5,7 +5,7 @@ use tokio::net::TcpStream;
 pub struct Peer {
     ip: IpAddr,
     status: PeerStatus,
-    socket: Option<TcpStream>,
+    pub socket: Option<TcpStream>,
     last_alive: Option<DateTime<Utc>>,
     last_failure: Option<DateTime<Utc>>
 }
