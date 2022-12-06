@@ -14,7 +14,7 @@ impl Peer {
     pub fn new(ip: &String) -> Self {
         Peer {
             ip: ip.parse::<IpAddr>().unwrap(),
-            status: PeerStatus::IDLE,
+            status: PeerStatus::Idle,
             socket: None,
             last_alive: None,
             last_failure: None
@@ -27,11 +27,11 @@ impl Peer {
 }
 
 pub enum PeerStatus {
-    IDLE,
-    OUTCONNECTING,
-    OUTHANDSHAKING,
-    OUTALIVE,
-    INHANDSHAKING,
-    INALIVE,
-    BANNED,
+    Idle,
+    OutConnecting,
+    OutHandshaking,
+    OutAlive,
+    InHandshaking,
+    InAlive,
+    Banned,
 }
