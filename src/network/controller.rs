@@ -69,7 +69,7 @@ impl NetworkController {
                 interval.tick().await;
                 let _ = file_controller_clone
                     .write_file(peers_clone.as_ref())
-                    .inspect_error(|err| error!("Error while writting file: {err}"));
+                    .inspect_error(|err| error!("Error while writing file: {err}"));
             }
         });
 
@@ -156,19 +156,17 @@ impl NetworkController {
         Ok(())
     }
 
-    pub fn feedback_peer_alive(&self, ip: IpAddr) {
+    pub fn feedback_peer_alive(&self, ip: &IpAddr) {
         todo!()
     }
 
-    pub fn feedback_peer_banned(&self, ip: IpAddr) {
+    pub fn feedback_peer_banned(&self, ip: &IpAddr) {
         todo!()
     }
 
-    pub fn feedback_peer_failed(&self, ip: IpAddr) {
-        todo!()
-    }
+    pub fn feedback_peer_failed(&self, ip: &IpAddr) { todo!() }
 
-    pub fn feedback_peer_closed(&self, ip: IpAddr) {
+    pub fn feedback_peer_closed(&self, ip: &IpAddr) {
         todo!()
     }
 
