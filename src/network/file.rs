@@ -1,7 +1,7 @@
 use crate::error_logger::InspectErr;
-use crate::network::peer::Peer;
+use crate::network::peer::{Peer, PeerError};
 use displaydoc::Display;
-use log::{error, info, trace, warn};
+use log::{info, warn};
 use std::collections::HashMap;
 use std::net::{AddrParseError, IpAddr};
 use std::str::FromStr;
@@ -20,6 +20,8 @@ pub enum PeersFileControllerError {
     IpAddressFormat(#[from] AddrParseError),
     /// Impossible to acquire lock over a RwLock
     RwLockPoisoned,
+    /// Error with a peer: {0}
+    Peer(#[from] PeerError),
 }
 
 #[derive(Default)]
@@ -48,7 +50,7 @@ impl PeersFileController {
             .map(|ip| -> Result<(IpAddr, Peer), PeersFileControllerError> {
                 Ok((
                     IpAddr::from_str(ip).inspect_error(|err| warn!("Can't parse ip {}", err))?,
-                    Peer::new(ip),
+                    Peer::new(ip)?,
                 ))
             })
             .flatten()

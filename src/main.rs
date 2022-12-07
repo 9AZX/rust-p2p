@@ -1,6 +1,6 @@
 use crate::network::controller::{NetworkController, NetworkControllerError};
 use crate::network::peer::Peer;
-use log::{info, trace};
+use log::{error, info, trace};
 use std::collections::HashMap;
 use std::io;
 use std::net::IpAddr;
@@ -9,10 +9,12 @@ pub mod error_logger;
 pub mod network;
 
 #[tokio::main]
-async fn main() -> Result<(), io::Error> {
+async fn main() -> Result<(), NetworkControllerError> {
+    env_logger::init();
+
     let peers_file = "peers.json";
     let listen_port = 8080;
-    let mut target_outgoing_connections: HashMap<IpAddr, Peer> = Default::default();
+    let target_outgoing_connections: HashMap<IpAddr, Peer> = Default::default();
     let max_incoming_connections = 16;
     let max_simultaneous_outgoing_connection_attempts = 16;
     let max_simultaneous_incoming_connection_attempts = 16;
@@ -34,15 +36,15 @@ async fn main() -> Result<(), io::Error> {
     )
     .await?;
 
-    trace!("Starting event loop");
+    info!("Starting event loop");
     // loop over messages coming from the network controller
     loop {
         tokio::select! {
             msg = net.wait_event() =>
                  match msg? {
                     network::controller::NetworkControllerEvent::CandidateConnection {ip, socket, is_outgoing} => {
-                    info!("New candidate connection: {ip}");
-                        net.add_peer(Peer::new(&ip));
+                        info!("New candidate connection: {ip}");
+                        net.add_peer(ip, Some(socket))?;
                         // ip is the peer ip, and socket is a tokio TCPStream
                         // triggered when a new TCP connection with a peer is established
                         // is_outgoing is true if our node has connected to the peer node
@@ -54,6 +56,7 @@ async fn main() -> Result<(), io::Error> {
 
                         // once the handshake is done, we can use this peer socket in main.rs
                     }
+                _ => { error!("Error while waiting for a message from the network controller") }
             }
         }
     }
@@ -76,11 +79,11 @@ async fn main() -> Result<(), io::Error> {
             It does not read/write on sockets, but only listens/connects
 
         NetworkController::new should create a NetworkController object and spawn an async loop that:
-            - maintains a list of known peers identified by their IP addresses
+            - maintains a list of known peers identified by their IP addresses: Done
             - each peer in the list has the following properties:
                 - status: enum:
-                    Idle : we know about the peer but we aren't currently doing anything with it
-                    OutConnecting : we are currently trying to establish an outgoing TCP connection to the peer
+                    Idle : we know about the peer but we aren't currently doing anything with it: Done
+                    OutConnecting : we are currently trying to establish an outgoing TCP connection to the peer: Done
                     OutHandshaking : we are currently handshaking with a peeer after having established and outgoing TCP connection to it
                     OutAlive : we have an outgoing TCP connection to the peer and the handshake is done, the peer is functional
                     InHandshaking : we are currently handshaking with a peeer after this peer established a TCP connection towards our node
@@ -91,8 +94,8 @@ async fn main() -> Result<(), io::Error> {
                 - last_failure: Option<DateTime<Utc>> : date at which a connection or handshake failed for the last time with that peer
                     if status == "Banned", it is set to the time of ban, and updated at any subsequent incoming connection attempt from that peer
                     if None, it means that we never failed to connect or handshake, and that we never banned that peer
-            - on startup, the peer list is loaded from the JSON file peers_file (this file should be preloaded with a list of bootstrap peers at first launch)
-            - every peer_file_dump_interval_seconds seconds, the peer list is dumped to the peers_file JSON file if there have been any changes
+            - on startup, the peer list is loaded from the JSON file peers_file (this file should be preloaded with a list of bootstrap peers at first launch): Done
+            - every peer_file_dump_interval_seconds seconds, the peer list is dumped to the peers_file JSON file if there have been any changes: Done
             - always tries to keep target_outgoing_connections peers in a OutAlive status by launching outgoing TCP connections towards the most promising peers when necessary
                 - when starting a connection attempt, set the peer status to OutConnecting
                 - when a TCP connection is established, set the peer status to OutHandshaking and emit a network::controller::NetworkControllerEvent::CandidateConnection event
