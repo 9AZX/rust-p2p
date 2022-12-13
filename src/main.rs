@@ -44,7 +44,7 @@ async fn main() -> Result<(), NetworkControllerError> {
                  match msg? {
                     network::controller::NetworkControllerEvent::CandidateConnection {ip, socket, is_outgoing} => {
                         info!("New candidate connection: {ip}");
-                        net.add_peer(ip, Some(socket))?;
+                        net.add_peer(ip, Some(socket)).await?;
                         // ip is the peer ip, and socket is a tokio TCPStream
                         // triggered when a new TCP connection with a peer is established
                         // is_outgoing is true if our node has connected to the peer node
@@ -102,7 +102,7 @@ async fn main() -> Result<(), NetworkControllerError> {
                 - up to max_simultaneous_outgoing_connection_attempts peers can be in an OutConnecting or OutHandshaking status
             - listens on port listen_port, accepts incoming TCP connections
                 - when a connection is accepted, set the peer status to InHandshaking and emit a network::controller::NetworkControllerEvent::CandidateConnection event
-                    if the peer is absent from the peer list, add it to the peer list
+                    if the peer is absent from the peer list, add it to the peer list: Done
                 - no more than max_incoming_connections peers can have InAlive status, extra connection attemps must be rejected
                 - no more than max_simultaneous_incoming_connection_attempts peers can have InHandshaking status, extra connection attemps must be rejected
             - no more than max_banned_peers can have Banned status. If necessary, some smartly chosen Banned peers may be dropped to respect this condition.

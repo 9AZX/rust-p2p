@@ -6,9 +6,9 @@ use std::collections::HashMap;
 use std::net::{AddrParseError, IpAddr};
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::RwLock;
 use std::{fs, io};
 use thiserror::Error;
+use tokio::sync::RwLock;
 
 #[derive(Display, Error, Debug)]
 pub enum PeersFileControllerError {
@@ -63,7 +63,7 @@ impl PeersFileController {
         Self::parse_peer(json)
     }
 
-    pub fn write_file(
+    pub async fn write_file(
         &self,
         peers: &RwLock<HashMap<IpAddr, Peer>>,
     ) -> Result<(), PeersFileControllerError> {
@@ -73,7 +73,7 @@ impl PeersFileController {
 
         let ips: Vec<String> = peers
             .read()
-            .map_err(|_| PeersFileControllerError::RwLockPoisoned)?
+            .await
             .iter()
             .map(|peer| peer.0.to_string())
             .collect();

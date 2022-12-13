@@ -1,14 +1,15 @@
-use std::borrow::{Borrow, BorrowMut};
 use std::collections::HashMap;
 use std::io;
 use std::net::IpAddr;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc};
 use std::time::Duration;
 
 use displaydoc::Display;
+use futures::{FutureExt, TryFutureExt};
 use log::{error, info, warn};
 use thiserror::Error;
 use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::{RwLock};
 use tokio::task;
 
 use crate::error_logger::InspectErr;
@@ -39,7 +40,7 @@ pub struct NetworkController {
     peers: Arc<RwLock<HashMap<IpAddr, Peer>>>,
     target_outgoing_connections: HashMap<IpAddr, Peer>,
     listen_port: u16,
-    loop_handle: Option<task::JoinHandle<()>>,
+    connect_to_peers_handle: task::JoinHandle<()>,
 }
 
 impl NetworkController {
@@ -60,8 +61,10 @@ impl NetworkController {
         let peer_list = file_controller.read_file()?;
         let peers: Arc<RwLock<HashMap<IpAddr, Peer>>> = Arc::new(RwLock::new(peer_list));
 
+        let peers_clone_file_controller = peers.clone();
+        let peers_clone_task_connect = peers.clone();
+
         // Create the file dumper worker
-        let peers_clone = peers.clone();
         let file_controller_clone = file_controller.clone();
         tokio::spawn(async move {
             info!("Starting file worker");
@@ -70,47 +73,33 @@ impl NetworkController {
             loop {
                 interval.tick().await;
                 let _ = file_controller_clone
-                    .write_file(peers_clone.as_ref())
-                    .inspect_error(|err| error!("Error while writing file: {err}"));
+                    .write_file(peers_clone_file_controller.as_ref());
             }
         });
 
 
-        // Create the controller
-        let mut controller = Self {
+        let connect_to_peers_handle = task::spawn(async move {
+            Self::connect_to_peers(peers_clone_task_connect, listen_port).await;
+        });
+
+        Ok(Self {
             file_controller,
             peers,
             target_outgoing_connections,
             listen_port,
-            loop_handle: None,
-        };
-
-        let loop_handle = task::spawn(async move {
-            loop {
-                controller.connect_to_peers();
-                // Do some work here
-            }
-        });
-
-        // Try to connect to knew peers
-        controller.loop_handle = Some(loop_handle);
-
-        Ok(controller)
+            connect_to_peers_handle,
+        })
     }
 
-    pub fn add_peer(
+    pub async fn add_peer(
         &mut self,
         ip: String,
         socket: Option<TcpStream>,
     ) -> Result<(), NetworkControllerError> {
         let mut peer = Peer::new(&ip)?;
         peer.socket = socket;
-        if let Ok(mut peers) = self.peers.write() {
-            peers.insert(*peer.ip(), peer);
-            self.file_controller.changed();
-        } else {
-            error!("Peer list is poisoned and won't get refresh");
-        }
+        self.peers.write().await.insert(*peer.ip(), peer);
+        self.file_controller.changed();
 
         Ok(())
     }
@@ -133,18 +122,16 @@ impl NetworkController {
         }
     }
 
-    pub async fn connect_to_peers(&mut self) -> Result<(), NetworkControllerError> {
-        for peer in self
-            .peers
-            .write()
-            .map_err(|_| NetworkControllerError::RwLockPoisoned)?
+    pub async fn connect_to_peers(peers: Arc<RwLock<HashMap<IpAddr, Peer>>>, listen_port: u16) -> Result<(), NetworkControllerError> {
+        for peer in peers
+            .write().await
             .iter_mut()
         {
             peer.1.connecting();
             if let Ok(socket) = TcpStream::connect(format!(
                 "{}:{}",
                 peer.0.to_string(),
-                self.listen_port.to_string()
+                listen_port.to_string()
             ))
             .await
             {
@@ -152,14 +139,14 @@ impl NetworkController {
                 info!(
                     "Connect to {}:{}",
                     peer.0.to_string(),
-                    self.listen_port.to_string()
+                    listen_port.to_string()
                 );
             } else {
                 peer.1.idle();
                 warn!(
                     "Cannot connect to {}:{}",
                     peer.0.to_string(),
-                    self.listen_port.to_string()
+                    listen_port.to_string()
                 );
             }
         }
