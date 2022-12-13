@@ -9,6 +9,7 @@ use displaydoc::Display;
 use log::{error, info, warn};
 use thiserror::Error;
 use tokio::net::{TcpListener, TcpStream};
+use tokio::task;
 
 use crate::error_logger::InspectErr;
 use crate::network::controller::NetworkControllerEvent::CandidateConnection;
@@ -38,6 +39,7 @@ pub struct NetworkController {
     peers: Arc<RwLock<HashMap<IpAddr, Peer>>>,
     target_outgoing_connections: HashMap<IpAddr, Peer>,
     listen_port: u16,
+    loop_handle: Option<task::JoinHandle<()>>,
 }
 
 impl NetworkController {
@@ -73,16 +75,25 @@ impl NetworkController {
             }
         });
 
+
         // Create the controller
         let mut controller = Self {
             file_controller,
             peers,
             target_outgoing_connections,
             listen_port,
+            loop_handle: None,
         };
 
-        // Try to connect to know peers
-        controller.connect_to_peers().await?;
+        let loop_handle = task::spawn(async move {
+            loop {
+                controller.connect_to_peers();
+                // Do some work here
+            }
+        });
+
+        // Try to connect to knew peers
+        controller.loop_handle = Some(loop_handle);
 
         Ok(controller)
     }
