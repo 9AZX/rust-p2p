@@ -1,8 +1,7 @@
 use crate::network::controller::{NetworkController, NetworkControllerError};
 use crate::network::peer::Peer;
-use log::{error, info, trace};
+use log::{error, info};
 use std::collections::HashMap;
-use std::io;
 use std::net::IpAddr;
 
 pub mod error_logger;
