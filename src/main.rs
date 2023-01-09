@@ -49,7 +49,7 @@ async fn main() -> Result<(), NetworkControllerError> {
                         // is_outgoing is true if our node has connected to the peer node
                         // is_outgoing is false if the peer node has connected to our node
 
-                        // here, a handshake must be performed by reading/writing data to socket
+                        // here, a handshake is performed by reading/writing data to socket
                         //  if the handshake succesds, call net.feedback_peer_alive(ip).await; to signal NetworkController to set the peer in InAlive or OutAlive state (this should update last_alive)
                         //  if handshake fails or the connection closes unexpectedly at any time, call net.feedback_peer_failed(ip).await; to signal NetworkController to set the peer status to Idle  (this should update last_failure)
 
@@ -61,23 +61,10 @@ async fn main() -> Result<(), NetworkControllerError> {
     }
 
     /*
-        call net.feedback_peer_alive(ip).await whenever the peer gives a sign of life (this should update last_alive)
-
-        if the peer misbehaves at any time, call net.feedback_peer_banned(ip).await; to signal NetworkController to set the peer status to Banned (this should update last_failure)
-
-        if we have closed the peer connection cleanly, call net.feedback_peer_closed(ip).await; to signal NetworkController to set the peer status to Idle
-
-        after handshake, and then again periodically, main.rs should ask alive peers for the list of peer IPs they know about, and feed them to the network controller: net.feedback_peer_list(list_of_ips).await;
-            net.feedback_peer_list should merge the new peers to the existing peer list in a smart way
-        similarly, peers can ask us for the list of peer IPs we know about, and we can retrieve it with net.get_good_peer_ips()
-            Note that net.get_good_peer_ips() excludes banned peers and sorts the peers from "best" to "worst"
-    */
-
-    /*
         NetworkController internally maintains a list of known peers and connections with them.
-            It does not read/write on sockets, but only listens/connects
+        It does not read/write on sockets, but only listens/connects
 
-        NetworkController::new should create a NetworkController object and spawn an async loop that:
+        NetworkController::new create a NetworkController object and spawn an async loop that:
             - maintains a list of known peers identified by their IP addresses: Done
             - each peer in the list has the following properties:
                 - status: enum:
@@ -107,5 +94,18 @@ async fn main() -> Result<(), NetworkControllerError> {
             - no more than max_banned_peers can have Banned status. If necessary, some smartly chosen Banned peers may be dropped to respect this condition.
             - no more than max_idle_peers can have Idle status. If necessary, some smartly chosen Idle peers may be dropped to respect this condition.
             - only up to a single TCP connection per peer is allowed (whatever the direction)
+    */
+    
+    /*
+        call net.feedback_peer_alive(ip).await whenever the peer gives a sign of life (this should update last_alive)
+
+        if the peer misbehaves at any time, call net.feedback_peer_banned(ip).await; to signal NetworkController to set the peer status to Banned (this should update last_failure)
+
+        if we have closed the peer connection cleanly, call net.feedback_peer_closed(ip).await; to signal NetworkController to set the peer status to Idle
+
+        after handshake, and then again periodically, main.rs should ask alive peers for the list of peer IPs they know about, and feed them to the network controller: net.feedback_peer_list(list_of_ips).await;
+            net.feedback_peer_list should merge the new peers to the existing peer list in a smart way
+        similarly, peers can ask us for the list of peer IPs we know about, and we can retrieve it with net.get_good_peer_ips()
+            Note that net.get_good_peer_ips() excludes banned peers and sorts the peers from "best" to "worst"
     */
 }
